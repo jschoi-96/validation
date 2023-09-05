@@ -10,6 +10,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
+import org.springframework.validation.ValidationUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -165,12 +166,22 @@ public class ValidationItemControllerV2 {
     @PostMapping("/add")
     public String addItemV4(@ModelAttribute Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes , Model model) {
 
+        // 검증에 실패하면 다시 입력 폼으로
+        if (bindingResult.hasErrors()) {
+            log.info("errors = {} " , bindingResult);
+
+            // bindResult는 모델에 담지 않아도 자동으로 view로 넘어감.
+            return "validation/v2/addForm";
+        }
         log.info("objectName={}" , bindingResult.getObjectName());
         log.info("target={}" , bindingResult.getTarget());
+
         // 검증 로직
-        if (!StringUtils.hasText(item.getItemName())) { // 글자가 없을 때 (에러)
-            bindingResult.rejectValue("itemName" , "required");
-        }
+        ValidationUtils.rejectIfEmptyOrWhitespace(bindingResult , "itemName" , "required");
+
+//        if (!StringUtils.hasText(item.getItemName())) { // 글자가 없을 때 (에러)
+//            bindingResult.rejectValue("itemName" , "required");
+//        }
 
         if (item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() > 10000000) {
             bindingResult.rejectValue("price", "range" , new Object[]{1000, 1000000} , null);
@@ -187,14 +198,6 @@ public class ValidationItemControllerV2 {
                 // 필드에 대한 오류가 아니고 글로벌한 오류이기 때문에 ObjectError 사용
                 bindingResult.reject("totalPriceMin" , new Object[]{1000,resultPrice} , null);
             }
-        }
-
-        // 검증에 실패하면 다시 입력 폼으로
-        if (bindingResult.hasErrors()) {
-            log.info("errors = {} " , bindingResult);
-
-            // bindResult는 모델에 담지 않아도 자동으로 view로 넘어감.
-            return "validation/v2/addForm";
         }
 
         Item savedItem = itemRepository.save(item);
